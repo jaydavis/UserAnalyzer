@@ -1,0 +1,23 @@
+using AnalyzerApp.Models;
+
+namespace AnalyzerApp.Utils
+{
+    public static class UserComparison
+    {
+        public static bool AreSameUser(UserRecord a, UserRecord b)
+        {
+            if (a.Email != null && b.Email != null)
+            {
+                return a.Email.Trim().ToLower() == b.Email.Trim().ToLower();
+            }
+
+            // Fallback if no email — match on name
+            return a.FirstName == b.FirstName && a.LastName == b.LastName;
+        }
+
+        public static string GetPresenceSummary(UserRecord user)
+        {
+            return $"Email: {user.Email ?? "[none]"} | B2C: {user.IsInB2C} | Cosmos: {user.IsInCosmos} | SQL: {user.IsInSql}";
+        }
+    }
+}
