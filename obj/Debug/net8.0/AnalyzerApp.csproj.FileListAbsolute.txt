@@ -10,6 +10,8 @@
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/AnalyzerApp.pdb
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Azure.Core.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Azure.Identity.dll
+/Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Azure.Security.KeyVault.Secrets.dll
+/Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/DotNetEnv.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Azure.Cosmos.Client.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Azure.Cosmos.Core.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Azure.Cosmos.Direct.dll
@@ -17,9 +19,12 @@
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Bcl.AsyncInterfaces.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Bcl.Cryptography.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Bcl.HashCode.dll
+/Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Bcl.Memory.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Data.SqlClient.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Extensions.Caching.Abstractions.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Extensions.Caching.Memory.dll
+/Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Extensions.Configuration.dll
+/Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Extensions.Configuration.Abstractions.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Extensions.Logging.Abstractions.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Extensions.Options.dll
@@ -44,6 +49,7 @@
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.Kiota.Serialization.Text.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Microsoft.SqlServer.Server.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Newtonsoft.Json.dll
+/Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Sprache.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/Std.UriTemplate.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/System.ClientModel.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/bin/Debug/net8.0/System.Configuration.ConfigurationManager.dll
@@ -83,6 +89,7 @@
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/obj/Debug/net8.0/AnalyzerApp.AssemblyInfoInputs.cache
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/obj/Debug/net8.0/AnalyzerApp.AssemblyInfo.cs
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/obj/Debug/net8.0/AnalyzerApp.csproj.CoreCompileInputs.cache
+/Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/obj/Debug/net8.0/AnalyzerApp.sourcelink.json
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/obj/Debug/net8.0/Analyzer.16CCCA9C.Up2Date
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/obj/Debug/net8.0/AnalyzerApp.dll
 /Users/jay.davis/Documents/Code/userstore-analyzer/AnalyzerApp/obj/Debug/net8.0/refint/AnalyzerApp.dll

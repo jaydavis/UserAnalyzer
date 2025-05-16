@@ -1,30 +1,159 @@
 ﻿using System;
+using System.Linq;
+using DotNetEnv;
+using AnalyzerApp.Data.Graph;
+using AnalyzerApp.Data.Cosmos;
+using AnalyzerApp.Data.Sql;
+using AnalyzerApp.Data.Secrets;
+using AnalyzerApp.Models;
+using AnalyzerApp.Services;
 
-namespace AnalyzerApp
+class Program
 {
-    class Program
+    static async Task Main(string[] args)
     {
-        static async Task Main(string[] args)
+        // Load environment variables
+        Env.Load();
+
+        var env = args
+            .FirstOrDefault(arg => arg.StartsWith("--env="))
+            ?.Split("=")[1]
+            ?.ToLower();
+
+        if (string.IsNullOrWhiteSpace(env) || !new[] { "dev", "uat", "prod" }.Contains(env))
+    {
+        Console.WriteLine("❌ Invalid or missing --env argument. Use --env=dev, uat, or prod.");
+        return;
+    }
+
+        // ========== B2C ==========
+        var tenantId = Environment.GetEnvironmentVariable($"B2C_{env.ToUpper()}_TENANT_ID");
+        var clientId = Environment.GetEnvironmentVariable($"B2C_{env.ToUpper()}_CLIENT_ID");
+        var clientSecret = Environment.GetEnvironmentVariable($"B2C_{env.ToUpper()}_CLIENT_SECRET");
+
+        if (string.IsNullOrWhiteSpace(tenantId) ||
+            string.IsNullOrWhiteSpace(clientId) ||
+            string.IsNullOrWhiteSpace(clientSecret))
         {
-            Console.WriteLine("User Store Analyzer Starting...");
-
-            // Stub: Call your future logic here
-            await RunAnalysisAsync();
-
-            Console.WriteLine("Done.");
+            Console.WriteLine("❌ B2C environment variables are not set properly.");
+            return;
         }
 
-        static async Task RunAnalysisAsync()
+        var b2cUsers = new List<B2CUser>();
+
+        try
         {
-            // Placeholder - You'll connect to B2C, Cosmos, and SQL here
-            Console.WriteLine("Analyzing Dev environment...");
+            Console.WriteLine("🔗 Connecting to Microsoft Graph (B2C)...");
+            var graphClient = GraphClientFactory.Create(tenantId, clientId, clientSecret);
+            var b2cService = new B2CUserService(graphClient);
 
-            // Example:
-            // var devB2CUsers = await GetUsersFromB2CAsync(...);
-            // var devCosmosUsers = await GetUsersFromCosmosAsync(...);
-            // var devSqlUsers = await GetUsersFromSqlAsync(...);
+            var rawB2CUsers = await b2cService.GetAllUsersAsync();
 
-            await Task.Delay(500); // Simulate async work
+            b2cUsers = rawB2CUsers
+                .Select(u => new B2CUser
+                {
+                    Id = u.Id,
+                    DisplayName = u.DisplayName,
+                    UserPrincipalName = u.UserPrincipalName,
+                    GivenName = u.GivenName,
+                    Surname = u.Surname
+                })
+                .ToList();
+
+            Console.WriteLine($"✅ Retrieved {b2cUsers.Count} B2C users");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ B2C error: {ex.Message}");
+        }
+
+        // ========== Cosmos ==========
+        var cosmosUsers = new List<CosmosUser>();
+
+        try
+        {
+            Console.WriteLine("🔗 Connecting to Cosmos DB...");
+            var cosmosConn = Environment.GetEnvironmentVariable($"COSMOS_{env.ToUpper()}_CONNECTION_STRING");
+            var cosmosDb = Environment.GetEnvironmentVariable($"COSMOS_{env.ToUpper()}_DATABASE_NAME");
+            var cosmosContainer = Environment.GetEnvironmentVariable($"COSMOS_{env.ToUpper()}_CONTAINER_NAME");
+
+            if (string.IsNullOrWhiteSpace(cosmosConn) ||
+                string.IsNullOrWhiteSpace(cosmosDb) ||
+                string.IsNullOrWhiteSpace(cosmosContainer))
+            {
+                Console.WriteLine("❌ Cosmos DB environment variables are not set properly.");
+                return;
+            }
+
+            var cosmosService = new CosmosUserService(cosmosConn, cosmosDb, cosmosContainer);
+            cosmosUsers = await cosmosService.GetUsersAsync();
+
+            Console.WriteLine($"✅ Retrieved {cosmosUsers.Count} Cosmos users");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Cosmos DB error: {ex.Message}");
+        }
+
+        // ========== SQL ==========
+        var sqlUsers = new List<SqlUser>();
+
+        try
+        {
+            Console.WriteLine("🔗 Connecting to Azure SQL...");
+            var vaultName = Environment.GetEnvironmentVariable($"KEYVAULT_{env.ToUpper()}_NAME");
+            var sqlServer = Environment.GetEnvironmentVariable($"SQL_{env.ToUpper()}_SERVER");
+            var sqlDb = Environment.GetEnvironmentVariable($"SQL_DB");
+            var userSecretName = Environment.GetEnvironmentVariable("SQL_USER_SECRET");
+            var passSecretName = Environment.GetEnvironmentVariable("SQL_PASS_SECRET");
+
+            if (string.IsNullOrWhiteSpace(vaultName) ||
+                string.IsNullOrWhiteSpace(sqlServer) ||
+                string.IsNullOrWhiteSpace(sqlDb) ||
+                string.IsNullOrWhiteSpace(userSecretName) ||
+                string.IsNullOrWhiteSpace(passSecretName))
+            {
+                Console.WriteLine("❌ SQL environment variables are not set properly.");
+                return;
+            }
+            
+            var sqlUser = await KeyVaultHelper.GetSecretAsync(vaultName, userSecretName);
+            var sqlPass = await KeyVaultHelper.GetSecretAsync(vaultName, passSecretName);
+
+            var connection = $"Server=tcp:{sqlServer},1433;" +
+                             $"Initial Catalog={sqlDb};" +
+                             $"Persist Security Info=False;" +
+                             $"User ID={sqlUser};" +
+                             $"Password={sqlPass};" +
+                             $"MultipleActiveResultSets=False;" +
+                             $"Encrypt=True;" +
+                             $"TrustServerCertificate=False;" +
+                             $"Connection Timeout=30;";
+
+            var sqlService = new SqlUserService(connection);
+            sqlUsers = await sqlService.GetUsersAsync();
+
+            Console.WriteLine($"✅ Retrieved {sqlUsers.Count} SQL users");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ SQL error: {ex.Message}");
+        }
+
+        // ========== Normalize + Compare ==========
+        Console.WriteLine("\n🔍 Normalizing users across sources...");
+
+        var normalizedUsers = UserNormalizerService.NormalizeUsers(b2cUsers, cosmosUsers, sqlUsers);
+
+        Console.WriteLine($"✅ Normalized {normalizedUsers.Count} unique users\n");
+
+        foreach (var user in normalizedUsers.Take(10))
+        {
+            Console.WriteLine($"🔑 {user.CommonId}");
+            Console.WriteLine($"   Email: {user.Email}");
+            Console.WriteLine($"   Username: {user.Username}");
+            Console.WriteLine($"   Display Name: {user.DisplayName}");
+            Console.WriteLine($"   Sources: {string.Join(", ", user.Sources)}\n");
         }
     }
 }
