@@ -1,89 +1,121 @@
 using AnalyzerApp.Models;
-using System.Collections.Generic;
-using System.Linq;
 
-namespace AnalyzerApp.Services
+namespace AnalyzerApp.Services;
+
+public static class UserNormalizerService
 {
-    public static class UserNormalizerService
+    public static List<NormalizedUser> NormalizeUsers(
+        List<B2CUser> b2cUsers,
+        List<CosmosUser> cosmosUsers,
+        List<SqlUser> sqlUsers,
+        out List<B2CUser> b2cOrphans,
+        out List<SqlUser> sqlOrphans)
     {
-        public static List<NormalizedUser> NormalizeUsers(
-            List<B2CUser> b2cUsers,
-            List<CosmosUser> cosmosUsers,
-            List<SqlUser> sqlUsers)
+        var normalized = new List<NormalizedUser>();
+        b2cOrphans = new();
+        sqlOrphans = new();
+
+        var matchedB2CIds = new HashSet<Guid>();
+        var matchedSqlIds = new HashSet<Guid>();
+
+        // Create lookups
+        var b2cById = b2cUsers
+            .Where(b => b.Id != null)
+            .ToDictionary(b => b.Id!.ToString());
+        var sqlByUsername = sqlUsers
+            .Where(s => !string.IsNullOrWhiteSpace(s.Username))
+            .ToDictionary(s => s.Username!.ToLower());
+
+        // Step 1 & 2: Cosmos → B2C and IDS3
+        foreach (var cosmos in cosmosUsers)
         {
-            var normalized = new Dictionary<string, NormalizedUser>();
-
-            // 1. Add from B2C
-            foreach (var b2c in b2cUsers)
+            var user = new NormalizedUser
             {
-                var key = b2c.Id ?? b2c.UserPrincipalName ?? $"b2c:{Guid.NewGuid()}";
+                CosmosId = cosmos.id?.ToString() ?? string.Empty,
+                Email = cosmos.Email,
+                DisplayName = cosmos.DisplayName,
+                ExistsInCosmos = true
+            };
 
-                normalized[key] = new NormalizedUser
+            // Match to B2C by B2CId
+            if (!string.IsNullOrEmpty(cosmos.B2CId) && b2cById.TryGetValue(cosmos.B2CId, out var b2c))
+            {
+                if (Guid.TryParse(b2c.Id, out var parsedB2CId))
                 {
-                    CommonId = key,
-                    DisplayName = b2c.DisplayName,
-                    Username = b2c.UserPrincipalName,
-                    Email = b2c.UserPrincipalName,
-                    ExistsInB2C = true
-                };
+                    user.B2CId = parsedB2CId.ToString();
+                    matchedB2CIds.Add(parsedB2CId);
+                }
+                user.ExistsInB2C = true;
             }
 
-            // 2. Merge Cosmos Users by Email
-            foreach (var cosmos in cosmosUsers)
+            // Match to IDS3 by Email = Username (case-insensitive)
+            string?[] lookupKeys = new[]
             {
-                var matchKey = normalized.Values.FirstOrDefault(u =>
-                    u.Email?.ToLower() == cosmos.Email?.ToLower() ||
-                    u.Username?.ToLower() == cosmos.Email?.ToLower());
+                cosmos.Email?.ToLower(),
+                cosmos.Username?.ToLower()
+            };
 
-                if (matchKey != null)
-                {
-                    matchKey.ExistsInCosmos = true;
-                    if (string.IsNullOrWhiteSpace(matchKey.DisplayName))
-                        matchKey.DisplayName = $"{cosmos.FirstName} {cosmos.LastName}".Trim();
-                }
-                else
-                {
-                    var key = cosmos.Email ?? $"cosmos:{Guid.NewGuid()}";
-                    normalized[key] = new NormalizedUser
-                    {
-                        CommonId = key,
-                        DisplayName = $"{cosmos.FirstName} {cosmos.LastName}".Trim(),
-                        Email = cosmos.Email,
-                        Username = cosmos.Email,
-                        ExistsInCosmos = true
-                    };
-                }
+            SqlUser? sql = null;
+            foreach (var key in lookupKeys.Where(k => !string.IsNullOrWhiteSpace(k)))
+            {
+                if (sqlByUsername.TryGetValue(key!, out sql))
+                    break;
             }
 
-            // 3. Merge SQL Users by ID or Username
-            foreach (var sql in sqlUsers)
+            if (sql != null)
             {
-                // Match by PublicKey OR Username if email matches
-                var matchKey = normalized.Values.FirstOrDefault(u =>
-                    (!string.IsNullOrWhiteSpace(sql.PublicKey) && u.CommonId == sql.PublicKey) ||
-                    (u.Username?.ToLower() == sql.Username?.ToLower()));
+                if (Guid.TryParse(sql.PublicKey, out var parsedSqlId))
+                {
+                    user.IDS3Id = parsedSqlId.ToString();
+                    matchedSqlIds.Add(parsedSqlId);
+                }
 
-                if (matchKey != null)
-                {
-                    matchKey.ExistsInSql = true;
-                    if (string.IsNullOrWhiteSpace(matchKey.Username))
-                        matchKey.Username = sql.Username;
-                    if (string.IsNullOrWhiteSpace(matchKey.CommonId))
-                        matchKey.CommonId = sql.PublicKey ?? matchKey.CommonId;
-                }
-                else
-                {
-                    var key = sql.PublicKey ?? $"sql:{Guid.NewGuid()}";
-                    normalized[key] = new NormalizedUser
-                    {
-                        CommonId = key,
-                        Username = sql.Username,
-                        ExistsInSql = true
-                    };
-                }
+                user.ExistsInSql = true;
             }
 
-            return normalized.Values.ToList();
+            normalized.Add(user);
         }
+
+        // Step 3: Match unmatched B2C → IDS3
+        foreach (var b2c in b2cUsers.Where(b => 
+            Guid.TryParse(b.Id, out var guid) && !matchedB2CIds.Contains(guid)))
+        {
+            var user = new NormalizedUser
+            {
+                CosmosId = b2c.Id != null ? b2c.Id.ToString() : string.Empty,
+                Email = b2c.UserPrincipalName,
+                DisplayName = b2c.DisplayName,
+                B2CId = Guid.TryParse(b2c.Id, out var parsedB2CId) ? parsedB2CId.ToString() : null,
+                ExistsInB2C = true
+            };
+
+            var emailKey = b2c.UserPrincipalName?.ToLower();
+            if (emailKey != null && sqlByUsername.TryGetValue(emailKey, out var sql))
+            {
+                if (Guid.TryParse(sql.PublicKey, out var parsedSqlIdStep3))
+                {
+                    user.IDS3Id = parsedSqlIdStep3.ToString();
+                    matchedSqlIds.Add(parsedSqlIdStep3);
+                }
+                user.ExistsInSql = true;
+            }
+
+            normalized.Add(user);
+        }
+
+        // Step 4: Orphans
+        b2cOrphans = b2cUsers
+            .Where(b => Guid.TryParse(b.Id, out var guid) && !matchedB2CIds.Contains(guid))
+            .ToList();
+
+        sqlOrphans = sqlUsers
+            .Where(s => {
+                if (Guid.TryParse(s.PublicKey, out var guid))
+                    return !matchedSqlIds.Contains(guid);
+                return true;
+            })
+            .ToList();
+
+        return normalized;
     }
 }

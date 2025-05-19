@@ -2,26 +2,29 @@ namespace AnalyzerApp.Models
 {
     public class NormalizedUser
     {
-        public string CommonId { get; set; } = "";   // The shared ID (e.g. PublicKey/UserId/GraphId)
+        // Primary cross-system identifier from Cosmos
+        public string CosmosId { get; set; } = Guid.Empty.ToString();
+
+        // Profile info
         public string? Email { get; set; }
-        public string? Username { get; set; }
+        public string? Username {get; set; }
         public string? DisplayName { get; set; }
 
-        // Source-specific metadata (optional)
+        // System-specific IDs (as strings)
+        public string? B2CId { get; set; }
+        public string? IDS3Id { get; set; }   // From SQL
+
+        // Flags indicating system presence
+        public bool ExistsInCosmos { get; set; } 
         public bool ExistsInB2C { get; set; }
-        public bool ExistsInCosmos { get; set; }
         public bool ExistsInSql { get; set; }
 
-        public string[] Sources
-        {
-            get
-            {
-                var sources = new List<string>();
-                if (ExistsInB2C) sources.Add("B2C");
-                if (ExistsInCosmos) sources.Add("Cosmos");
-                if (ExistsInSql) sources.Add("SQL");
-                return sources.ToArray();
-            }
-        }
+        // Helper for output/debug
+        public string[] Sources =>
+            new[] {
+                ExistsInCosmos ? "Cosmos" : null,
+                ExistsInB2C ? "B2C" : null,
+                ExistsInSql ? "IDS3" : null
+            }.Where(s => s != null).Cast<string>().ToArray();
     }
 }

@@ -20,7 +20,7 @@ namespace AnalyzerApp.Data.Cosmos
 
         public async Task<List<CosmosUser>> GetUsersAsync()
         {
-            var query = new QueryDefinition("SELECT c.FirstName, c.LastName, c.Email FROM c WHERE c.IsB2CEnabledFlag = true");
+            var query = new QueryDefinition("SELECT * FROM c");
             var results = new List<CosmosUser>();
 
             var iterator = _container.GetItemQueryIterator<JObject>(query);
@@ -33,7 +33,9 @@ namespace AnalyzerApp.Data.Cosmos
                     {
                         FirstName = item["FirstName"]?.ToString(),
                         LastName = item["LastName"]?.ToString(),
-                        Email = item["Email"]?.ToString()
+                        Email = item["Email"]?.ToString(),
+                        id = item["id"]?.ToString(),
+                        B2CId = item["B2CId"]?.ToString()
                     });
                 }
             }

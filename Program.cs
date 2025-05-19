@@ -7,6 +7,7 @@ using AnalyzerApp.Data.Sql;
 using AnalyzerApp.Data.Secrets;
 using AnalyzerApp.Models;
 using AnalyzerApp.Services;
+using System.Text.Json;
 
 class Program
 {
@@ -34,7 +35,45 @@ class Program
 
         var envKey = env.ToUpper();
         Console.WriteLine($"🌐 Environment: {envKey}");
-        // ========== B2C ==========
+
+        // ========== Cosmos ==========
+        var cosmosUsers = new List<CosmosUser>();
+
+        try
+        {
+            Console.WriteLine("🔗 Connecting to Cosmos DB...");
+            var cosmosConn = Environment.GetEnvironmentVariable($"COSMOS_{env.ToUpper()}_CONNECTION_STRING");
+            var cosmosDb = Environment.GetEnvironmentVariable($"COSMOS_{env.ToUpper()}_DATABASE_NAME");
+            var cosmosContainer = Environment.GetEnvironmentVariable($"COSMOS_{env.ToUpper()}_CONTAINER_NAME");
+
+            if (string.IsNullOrWhiteSpace(cosmosConn) ||
+                string.IsNullOrWhiteSpace(cosmosDb) ||
+                string.IsNullOrWhiteSpace(cosmosContainer))
+            {
+                Console.WriteLine("❌ Cosmos DB environment variables are not set properly.");
+                return;
+            }
+
+            var cosmosService = new CosmosUserService(cosmosConn, cosmosDb, cosmosContainer);
+            cosmosUsers = await cosmosService.GetUsersAsync();
+
+            Console.WriteLine($"✅ Retrieved {cosmosUsers.Count} Cosmos users");
+            // foreach (var user in cosmosUsers)
+            // {
+            //     Console.WriteLine($"*****");
+            //     Console.WriteLine($"   id:  {user.id}");
+            //     Console.WriteLine($"   First Name: {user.FirstName}");
+            //     Console.WriteLine($"   Last Name: {user.LastName}");
+            //     Console.WriteLine($"   Email: {user.Email}");
+            //     Console.WriteLine($"   B2CID: {user.B2CId}");
+            // }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Cosmos DB error: {ex.Message}");
+        }
+
+    //     // ========== B2C ==========
         var tenantId = Environment.GetEnvironmentVariable($"B2C_{env.ToUpper()}_TENANT_ID");
         var clientId = Environment.GetEnvironmentVariable($"B2C_{env.ToUpper()}_CLIENT_ID");
         var clientSecret = Environment.GetEnvironmentVariable($"B2C_{env.ToUpper()}_CLIENT_SECRET");
@@ -75,34 +114,6 @@ class Program
             Console.WriteLine($"❌ B2C error: {ex.Message}");
         }
 
-        // ========== Cosmos ==========
-        var cosmosUsers = new List<CosmosUser>();
-
-        try
-        {
-            Console.WriteLine("🔗 Connecting to Cosmos DB...");
-            var cosmosConn = Environment.GetEnvironmentVariable($"COSMOS_{env.ToUpper()}_CONNECTION_STRING");
-            var cosmosDb = Environment.GetEnvironmentVariable($"COSMOS_{env.ToUpper()}_DATABASE_NAME");
-            var cosmosContainer = Environment.GetEnvironmentVariable($"COSMOS_{env.ToUpper()}_CONTAINER_NAME");
-
-            if (string.IsNullOrWhiteSpace(cosmosConn) ||
-                string.IsNullOrWhiteSpace(cosmosDb) ||
-                string.IsNullOrWhiteSpace(cosmosContainer))
-            {
-                Console.WriteLine("❌ Cosmos DB environment variables are not set properly.");
-                return;
-            }
-
-            var cosmosService = new CosmosUserService(cosmosConn, cosmosDb, cosmosContainer);
-            cosmosUsers = await cosmosService.GetUsersAsync();
-
-            Console.WriteLine($"✅ Retrieved {cosmosUsers.Count} Cosmos users");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ Cosmos DB error: {ex.Message}");
-        }
-
         // ========== SQL ==========
         var sqlUsers = new List<SqlUser>();
 
@@ -127,8 +138,6 @@ class Program
             
             var sqlUser = await KeyVaultHelper.GetSecretAsync(vaultName, userSecretName);
             var sqlPass = await KeyVaultHelper.GetSecretAsync(vaultName, passSecretName);
-            // Console.WriteLine($"🔑 SQL User: {sqlUser}");
-            // Console.WriteLine($"🔑 SQL Password: {sqlPass}");
 
             var connection = $"Server=tcp:{sqlServer},1433;" +
                              $"Initial Catalog={sqlDb};" +
@@ -153,17 +162,41 @@ class Program
         // ========== Normalize + Compare ==========
         Console.WriteLine("\n🔍 Normalizing users across sources...");
 
-        var normalizedUsers = UserNormalizerService.NormalizeUsers(b2cUsers, cosmosUsers, sqlUsers);
+        var normalizedUsers = UserNormalizerService.NormalizeUsers(
+            b2cUsers, cosmosUsers, sqlUsers,
+            out var b2cOrphans, out var sqlOrphans);
+
 
         Console.WriteLine($"✅ Normalized {normalizedUsers.Count} unique users\n");
+        var result = new NormalizedResult
+        {
+            NormalizedUsers = normalizedUsers,
+            B2COrphans = b2cOrphans,
+            IDS3Orphans = sqlOrphans
+        };
 
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        var outputPath = $"output/normalized-output-{env}.json";
+        var json = JsonSerializer.Serialize(result, jsonOptions);
+        await File.WriteAllTextAsync(outputPath, json);
+
+        Console.WriteLine($"📄 Output written to {outputPath}");
+
+
+        // foreach (var user in normalizedUsers.Take(5))
         foreach (var user in normalizedUsers.Take(5))
         {
-            Console.WriteLine($"🔑 {user.CommonId}");
-            Console.WriteLine($"   Email: {user.Email}");
-            Console.WriteLine($"   Username: {user.Username}");
-            Console.WriteLine($"   Display Name: {user.DisplayName}");
-            Console.WriteLine($"   Sources: {string.Join(", ", user.Sources)}\n");
+            Console.WriteLine($"🔑   CosmosId: {user.CosmosId}");
+            Console.WriteLine($"🔑   B2CId: {user.B2CId}");
+            Console.WriteLine($"     Email: {user.Email}");
+            Console.WriteLine($"     Username: {user.Username}");
+            Console.WriteLine($"     Display Name: {user.DisplayName}");
+            Console.WriteLine($"     Sources: {string.Join(", ", user.Sources)}\n");
         }
-    }
+     }
 }
