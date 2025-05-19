@@ -15,17 +15,25 @@ class Program
         // Load environment variables
         Env.Load();
 
-        var env = args
+        string? env = args
             .FirstOrDefault(arg => arg.StartsWith("--env="))
             ?.Split("=")[1]
             ?.ToLower();
 
-        if (string.IsNullOrWhiteSpace(env) || !new[] { "dev", "uat", "prod" }.Contains(env))
-    {
-        Console.WriteLine("❌ Invalid or missing --env argument. Use --env=dev, uat, or prod.");
-        return;
-    }
+        if (string.IsNullOrWhiteSpace(env))
+        {
+            Console.Write("Enter environment (dev / uat / prod): ");
+            env = Console.ReadLine()?.Trim().ToLower();
+        }
 
+        if (string.IsNullOrWhiteSpace(env) || !new[] { "dev", "uat", "prod" }.Contains(env))
+        {
+            Console.WriteLine("❌ Invalid environment. Use 'dev', 'uat', or 'prod'.");
+            return;
+        }
+
+        var envKey = env.ToUpper();
+        Console.WriteLine($"🌐 Environment: {envKey}");
         // ========== B2C ==========
         var tenantId = Environment.GetEnvironmentVariable($"B2C_{env.ToUpper()}_TENANT_ID");
         var clientId = Environment.GetEnvironmentVariable($"B2C_{env.ToUpper()}_CLIENT_ID");
@@ -119,6 +127,8 @@ class Program
             
             var sqlUser = await KeyVaultHelper.GetSecretAsync(vaultName, userSecretName);
             var sqlPass = await KeyVaultHelper.GetSecretAsync(vaultName, passSecretName);
+            // Console.WriteLine($"🔑 SQL User: {sqlUser}");
+            // Console.WriteLine($"🔑 SQL Password: {sqlPass}");
 
             var connection = $"Server=tcp:{sqlServer},1433;" +
                              $"Initial Catalog={sqlDb};" +
@@ -147,7 +157,7 @@ class Program
 
         Console.WriteLine($"✅ Normalized {normalizedUsers.Count} unique users\n");
 
-        foreach (var user in normalizedUsers.Take(10))
+        foreach (var user in normalizedUsers.Take(5))
         {
             Console.WriteLine($"🔑 {user.CommonId}");
             Console.WriteLine($"   Email: {user.Email}");
