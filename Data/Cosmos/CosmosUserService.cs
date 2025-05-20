@@ -29,6 +29,9 @@ namespace AnalyzerApp.Data.Cosmos
             {
                 foreach (var item in await iterator.ReadNextAsync())
                 {
+                    var groups = item["Groups"]?.ToObject<List<UserGroup>>() ?? new List<UserGroup>();
+                    var claims = item["UserClaims"]?.ToObject<List<UserClaim>>() ?? new List<UserClaim>();
+
                     results.Add(new CosmosUser
                     {
                         FirstName = item["FirstName"]?.ToString(),
@@ -40,7 +43,9 @@ namespace AnalyzerApp.Data.Cosmos
                         IdpId = item["IdentityProviderGuid"]?.ToString(),
                         IDS3Enabled = item["IsIDS3EnabledFlag"]?.ToObject<bool>() ?? false,
                         B2CEnabled = item["IsB2CEnabledFlag"]?.ToObject<bool>() ?? false,
-                        B2CIssuer = item["B2CIssuer"]?.ToString()
+                        B2CIssuer = item["B2CIssuer"]?.ToString(),
+                        Groups = groups,
+                        UserClaims = claims
                     });
                 }
             }
