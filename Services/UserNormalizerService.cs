@@ -24,15 +24,16 @@ public static class UserNormalizerService
             .ToDictionary(b => b.Id!.ToString());
         var sqlByUsername = sqlUsers
             .Where(s => !string.IsNullOrWhiteSpace(s.Username))
-            .ToDictionary(s => s.Username!.ToLower());
+            .ToDictionary(s => s.Username!.Trim().ToLower());
 
         // Step 1 & 2: Cosmos → B2C and IDS3
         foreach (var cosmos in cosmosUsers)
         {
             var user = new NormalizedUser
             {
-                CosmosId = cosmos.id?.ToString() ?? string.Empty,
+                CosmosId = cosmos.id?.ToString() ?? Guid.Empty.ToString(),
                 Email = cosmos.Email,
+                Username = cosmos.Username,
                 DisplayName = cosmos.DisplayName,
                 ExistsInCosmos = true
             };
@@ -48,11 +49,11 @@ public static class UserNormalizerService
                 user.ExistsInB2C = true;
             }
 
-            // Match to IDS3 by Email = Username (case-insensitive)
+            // Match to IDS3 by Email or Username (case-insensitive)
             string?[] lookupKeys = new[]
             {
-                cosmos.Email?.ToLower(),
-                cosmos.Username?.ToLower()
+                cosmos.Email?.Trim().ToLower(),
+                cosmos.Username?.Trim().ToLower()
             };
 
             SqlUser? sql = null;
@@ -69,7 +70,6 @@ public static class UserNormalizerService
                     user.IDS3Id = parsedSqlId.ToString();
                     matchedSqlIds.Add(parsedSqlId);
                 }
-
                 user.ExistsInSql = true;
             }
 
@@ -82,14 +82,15 @@ public static class UserNormalizerService
         {
             var user = new NormalizedUser
             {
-                CosmosId = b2c.Id != null ? b2c.Id.ToString() : string.Empty,
+                CosmosId = b2c.Id != null ? b2c.Id.ToString() : Guid.Empty.ToString(),
                 Email = b2c.UserPrincipalName,
+                Username = b2c.UserPrincipalName,
                 DisplayName = b2c.DisplayName,
                 B2CId = Guid.TryParse(b2c.Id, out var parsedB2CId) ? parsedB2CId.ToString() : null,
                 ExistsInB2C = true
             };
 
-            var emailKey = b2c.UserPrincipalName?.ToLower();
+            var emailKey = b2c.UserPrincipalName?.Trim().ToLower();
             if (emailKey != null && sqlByUsername.TryGetValue(emailKey, out var sql))
             {
                 if (Guid.TryParse(sql.PublicKey, out var parsedSqlIdStep3))
