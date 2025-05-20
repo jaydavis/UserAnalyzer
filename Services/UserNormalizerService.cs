@@ -1,4 +1,6 @@
 using AnalyzerApp.Models;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace AnalyzerApp.Services;
 
@@ -20,42 +22,44 @@ public static class UserNormalizerService
 
         foreach (var cosmosUser in cosmosUsers)
         {
-            var cosmosId = cosmosUser.id;
-            var b2cId = cosmosUser.B2CId;
+            var cosmosId = cosmosUser?.id ?? string.Empty;
+            var b2cId = cosmosUser?.B2CId ?? string.Empty;
 
-            var b2cUser = b2cUsers.FirstOrDefault(u => u.Id == b2cId);
-            var sqlUser = sqlUsers.FirstOrDefault(u => u.B2CId == b2cId);
-
-            if (b2cUser != null && b2cUser.Id != null)
-            {
+            var b2cUser = b2cUsers.FirstOrDefault(u => u?.Id == b2cId);
+            if (!string.IsNullOrWhiteSpace(b2cUser?.Id))
                 matchedB2CIds.Add(b2cUser.Id);
-            }
 
-            if (sqlUser != null && sqlUser.B2CId != null)
-            {
+            var sqlUser = sqlUsers.FirstOrDefault(u => u?.B2CId == b2cId);
+            if (!string.IsNullOrWhiteSpace(sqlUser?.B2CId))
                 matchedSqlIds.Add(sqlUser.B2CId);
-            }
 
             normalized.Add(new NormalizedUser
             {
-                CosmosId = cosmosId ?? string.Empty,
+                CosmosId = cosmosId,
                 B2CId = b2cId,
-                IDS3PublicKey = sqlUser?.PublicKey,
-                Email = cosmosUser.Email,
+                IDS3PublicKey = sqlUser?.PublicKey, // ✅ Set correctly from SqlUser
                 Username = sqlUser?.Username,
-                DisplayName = cosmosUser.DisplayName,
+                DisplayName = cosmosUser?.DisplayName,
+                Email = cosmosUser?.Email,
+                ClientId = cosmosUser?.ClientId,
+                IdpId = cosmosUser?.IdpId,
+                B2CIssuer = cosmosUser?.B2CIssuer,
+                IDS3Enabled = cosmosUser?.IDS3Enabled ?? false,
+                B2CEnabled = cosmosUser?.B2CEnabled ?? false,
+                Groups = cosmosUser?.Groups ?? new List<UserGroup>(),
+                UserClaims = cosmosUser?.UserClaims ?? new List<UserClaim>(),
                 ExistsInCosmos = true,
-                ExistsInB2C = b2cUser != null,
-                ExistsInSql = sqlUser != null
+                ExistsInB2C = b2cUser is not null,
+                ExistsInSql = sqlUser is not null
             });
         }
 
         b2cOrphans = b2cUsers
-            .Where(u => u.Id != null && !matchedB2CIds.Contains(u.Id))
+            .Where(u => u is not null && !string.IsNullOrEmpty(u.Id) && !matchedB2CIds.Contains(u.Id))
             .ToList();
 
         sqlOrphans = sqlUsers
-            .Where(u => u.B2CId != null && !matchedSqlIds.Contains(u.B2CId))
+            .Where(u => u is not null && !string.IsNullOrEmpty(u.B2CId) && !matchedSqlIds.Contains(u.B2CId))
             .ToList();
 
         return normalized;

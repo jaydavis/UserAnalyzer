@@ -35,7 +35,12 @@ namespace AnalyzerApp.Data.Cosmos
                         LastName = item["LastName"]?.ToString(),
                         Email = item["Email"]?.ToString(),
                         id = item["id"]?.ToString(),
-                        B2CId = item["B2CId"]?.ToString()
+                        B2CId = item["B2CId"]?.ToString(),
+                        ClientId = item["ClientGuid"]?.ToString(),
+                        IdpId = item["IdentityProviderGuid"]?.ToString(),
+                        IDS3Enabled = item["IsIDS3EnabledFlag"]?.ToObject<bool>() ?? false,
+                        B2CEnabled = item["IsB2CEnabledFlag"]?.ToObject<bool>() ?? false,
+                        B2CIssuer = item["B2CIssuer"]?.ToString()
                     });
                 }
             }
