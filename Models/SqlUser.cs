@@ -4,5 +4,6 @@ namespace AnalyzerApp.Models
     {
         public string? PublicKey { get; set; }
         public string? Username { get; set; }
+        public string? B2CId { get; set; }
     }
 }

@@ -58,15 +58,6 @@ class Program
             cosmosUsers = await cosmosService.GetUsersAsync();
 
             Console.WriteLine($"✅ Retrieved {cosmosUsers.Count} Cosmos users");
-            // foreach (var user in cosmosUsers)
-            // {
-            //     Console.WriteLine($"*****");
-            //     Console.WriteLine($"   id:  {user.id}");
-            //     Console.WriteLine($"   First Name: {user.FirstName}");
-            //     Console.WriteLine($"   Last Name: {user.LastName}");
-            //     Console.WriteLine($"   Email: {user.Email}");
-            //     Console.WriteLine($"   B2CID: {user.B2CId}");
-            // }
         }
         catch (Exception ex)
         {
@@ -193,6 +184,7 @@ class Program
         {
             Console.WriteLine($"🔑   CosmosId: {user.CosmosId}");
             Console.WriteLine($"🔑   B2CId: {user.B2CId}");
+            Console.WriteLine($"🔑   IDS3PublicKey: {user.IDS3PublicKey}");
             Console.WriteLine($"     Email: {user.Email}");
             Console.WriteLine($"     Username: {user.Username}");
             Console.WriteLine($"     Display Name: {user.DisplayName}");

@@ -18,7 +18,7 @@ namespace AnalyzerApp.Data.Sql
         public async Task<List<SqlUser>> GetUsersAsync()
         {
             var users = new List<SqlUser>();
-            var query = "SELECT PublicKey, Username FROM Users WHERE Enabled = 1";
+            var query = "SELECT PublicKey, Username, B2CId FROM Users";
 
             using var connection = new SqlConnection(_connectionString);
             await connection.OpenAsync();
@@ -31,7 +31,8 @@ namespace AnalyzerApp.Data.Sql
                 users.Add(new SqlUser
                 {
                     PublicKey = reader["PublicKey"]?.ToString(),
-                    Username = reader["Username"]?.ToString()
+                    Username = reader["Username"]?.ToString(),
+                    B2CId = reader["B2CId"]?.ToString()
                 });
             }
 
